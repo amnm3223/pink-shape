@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>まほうの なかまわけゲーム</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap" rel="stylesheet">
+  <!-- Three.js Library & OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <style>
+    * {
+      font-family: 'M PLUS Rounded 1c', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    ruby rt {
+      font-size: 0.65em;
+      color: #d946ef;
+      font-weight: bold;
+    }
+
+    /* 背景アニメーション */
+    body {
+      background: linear-gradient(135deg, #fce7f3 0%, #f3e8ff 50%, #e0e7ff 100%);
+      background-size: 400% 400%;
+      animation: pastelGradient 12s ease infinite;
+    }
+    @keyframes pastelGradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* レースフリル風ボーダー */
+    .lace-border {
+      position: relative;
+      background: rgba(255, 255, 255, 0.94);
+      border: 5px solid #fbcfe8;
+      border-radius: 32px;
+      box-shadow: 0 15px 35px -5px rgba(236, 72, 153, 0.2), 0 0 15px rgba(253, 224, 71, 0.3);
+    }
+    .lace-border::before {
+      content: '';
+      position: absolute;
+      top: -12px; left: -12px; right: -12px; bottom: -12px;
+      border: 3px dashed #f472b6;
+      border-radius: 38px;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    /* ボタンバウンス & エフェクト */
+    .btn-bounce {
+      transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease, background 0.2s ease;
+    }
+    .btn-bounce:active {
+      transform: scale(0.93) translateY(2px);
+    }
+
+    /* ポップアップ表示 */
+    @keyframes popIn {
+      0% { transform: translate(-50%, -50%) scale(0.3) rotate(-10deg); opacity: 0; }
+      70% { transform: translate(-50%, -50%) scale(1.1) rotate(3deg); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+    }
+    .animate-pop {
+      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    /* キラキラ浮かぶアニメーション */
+    @keyframes floatSparkle {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-8px) rotate(12deg); }
+    }
+    .floating-icon {
+      animation: floatSparkle 3s ease-in-out infinite;
+    }
+
+    /* クリア用のキラキラ回転アニメーション */
+    @keyframes spinSparkle {
+      0% { transform: rotate(0deg) scale(1); }
+      50% { transform: rotate(180deg) scale(1.15); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+    .spin-sparkle {
+      animation: spinSparkle 4s linear infinite;
+    }
+
+    /* キャンバス操作 */
+    canvas {
+      cursor: grab;
+      touch-action: none;
+    }
+    canvas:active {
+      cursor: grabbing;
+    }
+
+    .gold-badge {
+      background: linear-gradient(135deg, #fef08a 0%, #fde047 100%);
+      border: 2px solid #f59e0b;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between p-3 sm:p-6 text-slate-800 select-none overflow-x-hidden relative">
+
+  <!-- 背景デコレーション -->
+  <div class="fixed top-3 left-3 text-3xl sm:text-4xl pointer-events-none floating-icon opacity-80 z-0">🦄</div>
+  <div class="fixed top-10 right-4 text-2xl sm:text-3xl pointer-events-none floating-icon opacity-80 z-0" style="animation-delay: 1s;">✨</div>
+  <div class="fixed bottom-6 left-5 text-2xl sm:text-3xl pointer-events-none floating-icon opacity-80 z-0" style="animation-delay: 1.5s;">🏰</div>
+  <div class="fixed bottom-12 right-6 text-3xl sm:text-4xl pointer-events-none floating-icon opacity-80 z-0" style="animation-delay: 0.5s;">👑</div>
+
+  <!-- スタート画面モーダル -->
+  <div id="startModal" class="fixed inset-0 z-50 flex items-center justify-center bg-purple-950/40 backdrop-blur-md p-4">
+    <div class="lace-border max-w-sm w-full p-6 sm:p-8 flex flex-col items-center text-center relative bg-white">
+      <div class="text-5xl sm:text-6xl mb-3 floating-icon">🦄✨</div>
+      <h2 class="text-2xl sm:text-3xl font-black text-pink-600 mb-2 leading-tight">
+        <ruby>魔法<rt>まほう</rt></ruby>の<br>
+        <ruby>仲間<rt>なかま</rt></ruby>わけゲーム
+      </h2>
+      <p class="text-xs sm:text-sm text-pink-800/80 font-bold mb-6 bg-pink-100/80 px-3 py-2 rounded-xl">
+        おなじ かたちの なかまを<br>えらんで 100てんを めざそう！
+      </p>
+      <button onclick="startGame()" class="w-full py-4 bg-gradient-to-r from-pink-400 via-fuchsia-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white text-xl font-black rounded-2xl shadow-lg border-b-4 border-purple-600 btn-bounce flex items-center justify-center gap-2">
+        <span>スタート！</span>
+        <span class="text-2xl">✨</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- クリア判定モーダル (100点達成時) -->
+  <div id="clearModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-purple-950/50 backdrop-blur-md p-4">
+    <div class="lace-border max-w-sm w-full p-6 sm:p-8 flex flex-col items-center text-center relative bg-white">
+      <div class="text-6xl sm:text-7xl mb-2 spin-sparkle">👑✨</div>
+      <div class="text-3xl mb-2">🎉 100てん！ 🎉</div>
+      <h2 class="text-2xl sm:text-3xl font-black text-pink-600 mb-3 leading-snug">
+        やったね！<br>かたちマスターだね！
+      </h2>
+      <p class="text-xs sm:text-sm text-purple-800 font-bold mb-6 bg-purple-100/80 px-4 py-2 rounded-2xl">
+        ぜんぶの かたちを はっけんできたよ！<br>すごいね！💖
+      </p>
+      <button onclick="restartGame()" class="w-full py-3.5 bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 hover:from-pink-500 hover:to-indigo-500 text-white text-lg sm:text-xl font-black rounded-2xl shadow-lg border-b-4 border-purple-600 btn-bounce flex items-center justify-center gap-2">
+        <span>もういちど あそぶ</span>
+        <span class="text-xl">✨</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ヘッダー -->
+  <header class="w-full max-w-md flex justify-between items-center mb-2 z-10">
+    <h1 class="text-lg sm:text-2xl font-black text-pink-600 tracking-wide flex items-center gap-1.5 drop-shadow-sm bg-white/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border-2 border-pink-200">
+      <span class="text-2xl sm:text-3xl">👑</span>
+      <span class="text-pink-500"><ruby>仲間<rt>なかま</rt></ruby>わけゲーム</span>
+    </h1>
+    <div class="gold-badge rounded-full px-3.5 py-1 shadow-md flex items-center gap-1.5">
+      <span class="text-amber-800 font-bold text-xs sm:text-sm"><ruby>点数<rt>てんすう</rt></ruby>:</span>
+      <span id="score" class="text-xl sm:text-2xl font-black text-amber-900">0</span>
+    </div>
+  </header>
+
+  <!-- メインカード -->
+  <main class="w-full max-w-md lace-border p-4 sm:p-6 flex flex-col items-center relative my-auto z-10">
+    
+    <!-- 正誤判定ポップアップ -->
+    <div id="feedback" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none opacity-0 flex flex-col items-center justify-center w-full">
+      <div id="feedbackIcon" class="text-7xl sm:text-8xl font-black drop-shadow-2xl"></div>
+      <div id="feedbackText" class="text-xl sm:text-2xl font-black bg-white/95 text-pink-600 px-6 py-2.5 rounded-full border-4 border-pink-300 shadow-2xl mt-2 flex items-center gap-2"></div>
+    </div>
+
+    <!-- 問いかけメッセージ -->
+    <div class="text-xs sm:text-base font-bold text-pink-800 text-center mb-3 bg-gradient-to-r from-pink-100 via-purple-100 to-pink-100 w-full py-2.5 px-3 rounded-2xl border-2 border-pink-200 shadow-sm flex items-center justify-center gap-1">
+      <span>✨</span>
+      <span>これと <ruby>同<rt>おな</rt></ruby>じ <ruby>仲間<rt>なかま</rt></ruby>は どれかな？</span>
+      <span>✨</span>
+    </div>
+
+    <!-- 出題3D WebGL表示領域 -->
+    <div id="questionCanvasContainer" class="relative w-48 h-48 sm:w-56 sm:h-56 bg-gradient-to-b from-purple-100/80 via-pink-50/60 to-purple-50/90 rounded-3xl border-4 border-dashed border-pink-300 shadow-inner mb-4 overflow-hidden flex items-center justify-center">
+      <div class="absolute top-2 right-2 text-xs font-bold text-pink-400/80 bg-white/70 px-2.5 py-0.5 rounded-full pointer-events-none">くるくる まわせるよ 🦄</div>
+    </div>
+
+    <!-- 選択肢 2x2 グリッド -->
+    <div class="grid grid-cols-2 gap-3 sm:gap-4 w-full" id="optionsContainer">
+    </div>
+
+    <!-- つぎの問題ボタン -->
+    <button id="nextBtn" onclick="generateQuestion()" class="hidden mt-4 w-full py-3 bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 hover:from-pink-500 hover:to-indigo-500 text-white text-base sm:text-lg font-black rounded-2xl shadow-md border-b-4 border-purple-600 btn-bounce flex items-center justify-center gap-2 z-20">
+      <span>つぎの もんだいへ</span>
+      <span class="text-xl">✨➔</span>
+    </button>
+  </main>
+
+  <!-- フッター -->
+  <footer class="mt-2 text-center text-xs font-bold text-pink-700/80 bg-white/60 px-3 py-1 rounded-full backdrop-blur-sm border border-pink-200 z-10">
+    💖 <ruby>小学<rt>しょうがく</rt></ruby>1<ruby>年生<rt>ねんせい</rt></ruby>の <ruby>算数<rt>さんすう</rt></ruby>「かたちあそび」 💖
+  </footer>
+
+  <script>
+    // 立体カテゴリー
+    const SHAPE_KEYS = ['CYLINDER', 'CUBOID', 'CUBE', 'SPHERE'];
+
+    // 白色・極端に薄い色を除外した、鮮やかで優しいパステルカラーのみ
+    const SHAPE_COLORS = [
+      0xf472b6, // パステルピンク
+      0x60a5fa, // パステルスカイブルー
+      0x34d399, // パステルミントグリーン
+      0xc084fc, // パステルライラックパープル
+      0xfacc15, // パステルイエロー
+      0xf97316, // パステルオレンジ・ピーチ
+      0xf43f5e, // コーラルピンク
+      0x2dd4bf  // ソフトターコイズ
+    ];
+
+    let currentTargetShape = '';
+    let score = 0;
+    let isAnswering = true;
+    let gameActive = false;
+
+    // Web Audio API サウンド演出
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function playSound(type) {
+      try {
+        if (!audioCtx) audioCtx = new AudioCtx();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'correct') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now);       // C5
+          osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+          osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
+          osc.frequency.setValueAtTime(1046.50, now + 0.24); // C6
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+          osc.start(now);
+          osc.stop(now + 0.5);
+        } else if (type === 'wrong') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(260, now);
+          osc.frequency.setValueAtTime(200, now + 0.12);
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        } else if (type === 'victory') {
+          // 100点達成時のファンファーレ
+          const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+          notes.forEach((freq, idx) => {
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.type = 'sine';
+            o.connect(g);
+            g.connect(audioCtx.destination);
+            const t = now + idx * 0.1;
+            o.frequency.setValueAtTime(freq, t);
+            g.gain.setValueAtTime(0.25, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+            o.start(t);
+            o.stop(t + 0.4);
+          });
+        }
+      } catch (e) {}
+    }
+
+    // メイン問題用 Three.js セットアップ
+    let qScene, qCamera, qRenderer, qControls, qMeshGroup;
+
+    function initMainCanvas() {
+      const container = document.getElementById('questionCanvasContainer');
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+
+      qScene = new THREE.Scene();
+
+      qCamera = new THREE.PerspectiveCamera(40, w / h, 0.1, 100);
+      qCamera.position.set(0, 2.2, 6.2);
+
+      qRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      qRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      qRenderer.setSize(w, h);
+      container.appendChild(qRenderer.domElement);
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
+      qScene.add(ambientLight);
+
+      const dirLight1 = new THREE.DirectionalLight(0xfff1f2, 0.65);
+      dirLight1.position.set(5, 8, 5);
+      qScene.add(dirLight1);
+
+      const dirLight2 = new THREE.DirectionalLight(0xe0e7ff, 0.45);
+      dirLight2.position.set(-5, -3, -3);
+      qScene.add(dirLight2);
+
+      qControls = new THREE.OrbitControls(qCamera, qRenderer.domElement);
+      qControls.enableDamping = true;
+      qControls.dampingFactor = 0.1;
+      qControls.enableZoom = false;
+      qControls.enablePan = false;
+
+      qMeshGroup = new THREE.Group();
+      qScene.add(qMeshGroup);
+    }
+
+    /**
+     * 3D立体＋やわらかいフチ（輪郭線）の生成
+     */
+    function createShapeObject(shapeType) {
+      const group = new THREE.Group();
+      let geometry;
+      const fillColor = SHAPE_COLORS[Math.floor(Math.random() * SHAPE_COLORS.length)];
+
+      if (shapeType === 'CUBE') {
+        const subtype = Math.floor(Math.random() * 3);
+        if (subtype === 0) {
+          const s = 1.15;
+          geometry = new THREE.BoxGeometry(s, s, s);
+        } else if (subtype === 1) { // 小さいサイコロ
+          const s = 0.6;
+          geometry = new THREE.BoxGeometry(s, s, s);
+        } else { // キャラメル箱型
+          const s = 1.35;
+          geometry = new THREE.BoxGeometry(s, s, s);
+        }
+
+      } else if (shapeType === 'CUBOID') {
+        const subtype = Math.floor(Math.random() * 5);
+        if (subtype === 0) { // 牛乳パック風
+          geometry = new THREE.BoxGeometry(0.7, 1.5, 0.7);
+        } else if (subtype === 1) { // ティッシュ箱風
+          geometry = new THREE.BoxGeometry(1.6, 0.55, 0.85);
+        } else if (subtype === 2) { // 筆箱風
+          geometry = new THREE.BoxGeometry(0.7, 0.6, 1.5);
+        } else if (subtype === 3) { // ラップの箱（長尺）
+          geometry = new THREE.BoxGeometry(1.9, 0.42, 0.42);
+        } else { // 消しゴム風
+          geometry = new THREE.BoxGeometry(0.65, 0.35, 0.95);
+        }
+
+      } else if (shapeType === 'CYLINDER') {
+        const cylinderType = Math.floor(Math.random() * 4);
+        if (cylinderType === 0) { // ラップの芯（細長い円柱）
+          geometry = new THREE.CylinderGeometry(0.22, 0.22, 1.8, 48);
+        } else if (cylinderType === 1) { // 薄いフタ型
+          geometry = new THREE.CylinderGeometry(1.0, 1.0, 0.25, 48);
+        } else if (cylinderType === 2) { // 水筒・茶筒型
+          geometry = new THREE.CylinderGeometry(0.45, 0.45, 1.5, 48);
+        } else { // 缶型
+          geometry = new THREE.CylinderGeometry(0.75, 0.75, 0.9, 48);
+        }
+
+      } else if (shapeType === 'SPHERE') {
+        const sphereType = Math.floor(Math.random() * 3);
+        if (sphereType === 0) { // ドッジボール
+          geometry = new THREE.SphereGeometry(0.9, 32, 32);
+        } else if (sphereType === 1) { // ピンポン玉
+          geometry = new THREE.SphereGeometry(0.5, 32, 32);
+        } else { // 標準球
+          geometry = new THREE.SphereGeometry(0.72, 32, 32);
+        }
+      }
+
+      const faceMaterial = new THREE.MeshToonMaterial({
+        color: fillColor,
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1
+      });
+      const mesh = new THREE.Mesh(geometry, faceMaterial);
+      group.add(mesh);
+
+      const lineColor = 0x8b5cf6; // やわらかい紫色の輪郭線
+      if (shapeType === 'SPHERE') {
+        const edges = new THREE.EdgesGeometry(geometry, 25);
+        const lineMaterial = new THREE.LineBasicMaterial({ color: lineColor, linewidth: 2 });
+        group.add(new THREE.LineSegments(edges, lineMaterial));
+      } else if (shapeType === 'CYLINDER') {
+        const edges = new THREE.EdgesGeometry(geometry, 45);
+        const lineMaterial = new THREE.LineBasicMaterial({ color: lineColor, linewidth: 2 });
+        group.add(new THREE.LineSegments(edges, lineMaterial));
+      } else {
+        const edges = new THREE.EdgesGeometry(geometry);
+        const lineMaterial = new THREE.LineBasicMaterial({ color: lineColor, linewidth: 2 });
+        group.add(new THREE.LineSegments(edges, lineMaterial));
+      }
+
+      return group;
+    }
+
+    // 選択肢カードの配列
+    const optionObjects = [];
+
+    function createOptionCard(shapeType, container) {
+      const card = document.createElement('div');
+      card.dataset.shape = shapeType;
+      card.className = `option-card relative w-full aspect-square bg-gradient-to-b from-white to-pink-50/40 border-3 border-pink-200 hover:border-pink-400 rounded-2xl flex flex-col items-center justify-between transition-all duration-150 shadow-sm hover:shadow-md overflow-hidden p-1.5`;
+
+      const optCanvas = document.createElement('canvas');
+      optCanvas.className = 'w-full h-full block rounded-xl';
+      card.appendChild(optCanvas);
+
+      const selectBtn = document.createElement('button');
+      selectBtn.className = 'select-act-btn absolute bottom-2 left-1/2 -translate-x-1/2 w-11/12 py-1 bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 active:scale-95 text-white font-black text-xs sm:text-sm rounded-xl shadow-sm border-b-2 border-purple-600 z-10 flex items-center justify-center gap-1';
+      selectBtn.innerHTML = `<span>えらぶ ✨</span>`;
+      card.appendChild(selectBtn);
+
+      container.appendChild(card);
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+      camera.position.set(0, 0.2, 5.0);
+      camera.lookAt(0, 0, 0);
+
+      const renderer = new THREE.WebGLRenderer({ canvas: optCanvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.12;
+      controls.enableZoom = false;
+      controls.enablePan = false;
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
+      scene.add(ambientLight);
+      const dirLight = new THREE.DirectionalLight(0xfff1f2, 0.65);
+      dirLight.position.set(4, 6, 4);
+      scene.add(dirLight);
+
+      const shapeObj = createShapeObject(shapeType);
+      scene.add(shapeObj);
+      shapeObj.position.set(0, 0, 0);
+
+      optionObjects.push({
+        renderer,
+        scene,
+        camera,
+        controls,
+        shapeObj,
+        card,
+        selectBtn,
+        shapeType
+      });
+
+      selectBtn.onclick = (e) => {
+        e.stopPropagation();
+        checkAnswer(shapeType, card);
+      };
+
+      card.onclick = (e) => {
+        if (controls.state !== -1) return;
+        checkAnswer(shapeType, card);
+      };
+    }
+
+    // 全描画ループ
+    function mainRenderLoop() {
+      requestAnimationFrame(mainRenderLoop);
+
+      if (qControls) qControls.update();
+      if (qRenderer && qScene && qCamera) {
+        qRenderer.render(qScene, qCamera);
+      }
+
+      optionObjects.forEach(opt => {
+        if (opt.controls) opt.controls.update();
+        const w = opt.card.clientWidth || 120;
+        const h = opt.card.clientHeight || 120;
+        opt.renderer.setSize(w, h, false);
+        opt.renderer.render(opt.scene, opt.camera);
+      });
+    }
+
+    function shuffle(arr) {
+      return [...arr].sort(() => Math.random() - 0.5);
+    }
+
+    // ゲーム開始処理（スタートボタンタップ時）
+    function startGame() {
+      document.getElementById('startModal').classList.add('hidden');
+      score = 0;
+      document.getElementById('score').innerText = score;
+      gameActive = true;
+      generateQuestion();
+    }
+
+    // 再スタート処理（100点達成後）
+    function restartGame() {
+      document.getElementById('clearModal').classList.add('hidden');
+      document.getElementById('startModal').classList.remove('hidden');
+    }
+
+    // 問題生成
+    function generateQuestion() {
+      if (!gameActive) return;
+
+      isAnswering = true;
+      document.getElementById('nextBtn').classList.add('hidden');
+
+      const feedback = document.getElementById('feedback');
+      feedback.classList.remove('animate-pop');
+      feedback.style.opacity = '0';
+
+      currentTargetShape = SHAPE_KEYS[Math.floor(Math.random() * SHAPE_KEYS.length)];
+
+      while (qMeshGroup.children.length > 0) {
+        const obj = qMeshGroup.children[0];
+        qMeshGroup.remove(obj);
+      }
+
+      const qShapeObj = createShapeObject(currentTargetShape);
+      qMeshGroup.add(qShapeObj);
+
+      qCamera.position.set(0, 2.2, 6.2);
+      qControls.reset();
+
+      optionObjects.length = 0;
+      const container = document.getElementById('optionsContainer');
+      container.innerHTML = '';
+
+      const shuffledKeys = shuffle(SHAPE_KEYS);
+      shuffledKeys.forEach(key => {
+        createOptionCard(key, container);
+      });
+    }
+
+    // 正誤チェック
+    function checkAnswer(selectedKey, clickedCard) {
+      if (!isAnswering || !gameActive) return;
+      isAnswering = false;
+
+      const feedback = document.getElementById('feedback');
+      const feedbackIcon = document.getElementById('feedbackIcon');
+      const feedbackText = document.getElementById('feedbackText');
+
+      optionObjects.forEach(opt => {
+        if (opt.controls) opt.controls.enabled = false;
+        opt.selectBtn.disabled = true;
+        opt.selectBtn.classList.add('opacity-50', 'pointer-events-none');
+      });
+
+      if (selectedKey === currentTargetShape) {
+        score += 10;
+        document.getElementById('score').innerText = score;
+
+        clickedCard.classList.remove('border-pink-200');
+        clickedCard.classList.add('border-emerald-400', 'bg-emerald-50/80', 'ring-4', 'ring-emerald-200');
+
+        feedbackIcon.innerText = '💖';
+        feedbackText.innerHTML = '<span>せいかい！</span><span>✨</span>';
+        feedbackText.className = 'text-xl sm:text-2xl font-black bg-white/95 text-pink-600 px-6 py-2.5 rounded-full border-4 border-pink-300 shadow-2xl mt-2 flex items-center gap-1.5';
+
+        // 100点達成チェック
+        if (score >= 100) {
+          playSound('victory');
+          setTimeout(() => {
+            document.getElementById('clearModal').classList.remove('hidden');
+          }, 800);
+          return;
+        } else {
+          playSound('correct');
+        }
+
+      } else {
+        playSound('wrong');
+        clickedCard.classList.remove('border-pink-200');
+        clickedCard.classList.add('border-rose-400', 'bg-rose-50/80');
+
+        optionObjects.forEach(opt => {
+          if (opt.shapeType === currentTargetShape) {
+            opt.card.classList.add('border-emerald-400', 'bg-emerald-50/80', 'ring-4', 'ring-emerald-200');
+          }
+        });
+
+        feedbackIcon.innerText = '💧';
+        feedbackText.innerHTML = '<span>ざんねん！</span>';
+        feedbackText.className = 'text-xl sm:text-2xl font-black bg-white/95 text-indigo-600 px-6 py-2.5 rounded-full border-4 border-indigo-300 shadow-2xl mt-2 flex items-center gap-1.5';
+      }
+
+      feedback.classList.add('animate-pop');
+      document.getElementById('nextBtn').classList.remove('hidden');
+    }
+
+    // 初期化
+    window.onload = () => {
+      initMainCanvas();
+      mainRenderLoop();
+    };
+
+    // ウィンドウリサイズ対応
+    window.onresize = () => {
+      if (qRenderer && qCamera) {
+        const container = document.getElementById('questionCanvasContainer');
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        qCamera.aspect = w / h;
+        qCamera.updateProjectionMatrix();
+        qRenderer.setSize(w, h);
+      }
+    };
+  </script>
+</body>
+</html>
