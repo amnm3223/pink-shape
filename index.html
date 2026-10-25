@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>まほうの なかまわけ</title>
+  <!-- 教育・学習ツールとしてのメタ情報 -->
+  <title>小1算数 かたちあそび学習ツール</title>
+  <meta name="description" content="小学1年生の算数「かたちあそび」を3Dモデルで学べるデジタル教材です。">
+  <meta name="category" content="Education">
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap" rel="stylesheet">
-  <!-- Three.js Library & OrbitControls -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <style>
@@ -18,78 +20,28 @@
     }
     ruby rt {
       font-size: 0.65em;
-      color: #d946ef;
+      color: #0284c7;
       font-weight: bold;
     }
-
-    /* 背景アニメーション */
-    body {
-      background: linear-gradient(135deg, #fce7f3 0%, #f3e8ff 50%, #e0e7ff 100%);
-      background-size: 400% 400%;
-      animation: pastelGradient 12s ease infinite;
-    }
-    @keyframes pastelGradient {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-
-    /* レースフリル風ボーダー */
-    .lace-border {
-      position: relative;
-      background: rgba(255, 255, 255, 0.94);
-      border: 5px solid #fbcfe8;
+    .quiz-card {
+      background: rgba(255, 255, 255, 0.95);
       border-radius: 32px;
-      box-shadow: 0 15px 35px -5px rgba(236, 72, 153, 0.2), 0 0 15px rgba(253, 224, 71, 0.3);
+      box-shadow: 0 15px 35px rgba(244, 114, 182, 0.2);
     }
-    .lace-border::before {
-      content: '';
-      position: absolute;
-      top: -12px; left: -12px; right: -12px; bottom: -12px;
-      border: 3px dashed #f472b6;
-      border-radius: 38px;
-      pointer-events: none;
-      opacity: 0.6;
-    }
-
-    /* ボタンバウンス & エフェクト */
     .btn-bounce {
-      transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease, background 0.2s ease;
+      transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
     }
     .btn-bounce:active {
-      transform: scale(0.93) translateY(2px);
+      transform: scale(0.95);
     }
-
-    /* ポップアップ表示 */
     @keyframes popIn {
-      0% { transform: translate(-50%, -50%) scale(0.3) rotate(-10deg); opacity: 0; }
-      70% { transform: translate(-50%, -50%) scale(1.1) rotate(3deg); opacity: 1; }
-      100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+      0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+      70% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
     }
     .animate-pop {
-      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     }
-
-    /* キラキラ浮かぶアニメーション */
-    @keyframes floatSparkle {
-      0%, 100% { transform: translateY(0px) rotate(0deg); }
-      50% { transform: translateY(-8px) rotate(12deg); }
-    }
-    .floating-icon {
-      animation: floatSparkle 3s ease-in-out infinite;
-    }
-
-    /* クリア用のキラキラ回転アニメーション */
-    @keyframes spinSparkle {
-      0% { transform: rotate(0deg) scale(1); }
-      50% { transform: rotate(180deg) scale(1.15); }
-      100% { transform: rotate(360deg) scale(1); }
-    }
-    .spin-sparkle {
-      animation: spinSparkle 4s linear infinite;
-    }
-
-    /* キャンバス操作 */
     canvas {
       cursor: grab;
       touch-action: none;
@@ -97,88 +49,66 @@
     canvas:active {
       cursor: grabbing;
     }
-
-    .gold-badge {
-      background: linear-gradient(135deg, #fef08a 0%, #fde047 100%);
-      border: 2px solid #f59e0b;
-    }
   </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-between p-3 sm:p-6 text-slate-800 select-none overflow-x-hidden relative">
-
-  <!-- 背景デコレーション -->
-  <div class="fixed top-3 left-3 text-3xl sm:text-4xl pointer-events-none floating-icon opacity-80 z-0">🦄</div>
-  <div class="fixed top-10 right-4 text-2xl sm:text-3xl pointer-events-none floating-icon opacity-80 z-0" style="animation-delay: 1s;">✨</div>
-  <div class="fixed bottom-6 left-5 text-2xl sm:text-3xl pointer-events-none floating-icon opacity-80 z-0" style="animation-delay: 1.5s;">🏰</div>
-  <div class="fixed bottom-12 right-6 text-3xl sm:text-4xl pointer-events-none floating-icon opacity-80 z-0" style="animation-delay: 0.5s;">👑</div>
-
-  <!-- スタート画面モーダル -->
-  <div id="startModal" class="fixed inset-0 z-50 flex items-center justify-center bg-purple-950/40 backdrop-blur-md p-4">
-    <div class="lace-border max-w-sm w-full p-6 sm:p-8 flex flex-col items-center text-center relative bg-white">
-      <div class="text-5xl sm:text-6xl mb-3 floating-icon">🦄✨</div>
-      <h2 class="text-2xl sm:text-3xl font-black text-pink-600 mb-2 leading-tight">
-        <ruby>魔法<rt>まほう</rt></ruby>の<br>
-        <ruby>仲間<rt>なかま</rt></ruby>わけ
-      </h2>
-      <p class="text-xs sm:text-sm text-pink-800/80 font-bold mb-6 bg-pink-100/80 px-3 py-2 rounded-xl">
-        おなじ かたちの なかまを<br>えらんで 100てんを めざそう！
-      </p>
-      <button onclick="startGame()" class="w-full py-4 bg-gradient-to-r from-pink-400 via-fuchsia-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white text-xl font-black rounded-2xl shadow-lg border-b-4 border-purple-600 btn-bounce flex items-center justify-center gap-2">
-        <span>スタート！</span>
-        <span class="text-2xl">✨</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- クリア判定モーダル (100点達成時) -->
-  <div id="clearModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-purple-950/50 backdrop-blur-md p-4">
-    <div class="lace-border max-w-sm w-full p-6 sm:p-8 flex flex-col items-center text-center relative bg-white">
-      <div class="text-6xl sm:text-7xl mb-2 spin-sparkle">👑✨</div>
-      <div class="text-3xl mb-2">🎉 100てん！ 🎉</div>
-      <h2 class="text-2xl sm:text-3xl font-black text-pink-600 mb-3 leading-snug">
-        やったね！<br>かたちマスターだね！
-      </h2>
-      <p class="text-xs sm:text-sm text-purple-800 font-bold mb-6 bg-purple-100/80 px-4 py-2 rounded-2xl">
-        ぜんぶの かたちを はっけんできたよ！<br>すごいね！💖
-      </p>
-      <button onclick="restartGame()" class="w-full py-3.5 bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 hover:from-pink-500 hover:to-indigo-500 text-white text-lg sm:text-xl font-black rounded-2xl shadow-lg border-b-4 border-purple-600 btn-bounce flex items-center justify-center gap-2">
-        <span>もういちど あそぶ</span>
-        <span class="text-xl">✨</span>
-      </button>
-    </div>
-  </div>
+<body class="bg-gradient-to-b from-pink-100 via-purple-50 to-pink-100 min-h-screen flex flex-col items-center justify-between p-3 sm:p-6 text-slate-800 select-none overflow-x-hidden relative">
 
   <!-- ヘッダー -->
   <header class="w-full max-w-md flex justify-between items-center mb-2 z-10">
-    <h1 class="text-lg sm:text-2xl font-black text-pink-600 tracking-wide flex items-center gap-1.5 drop-shadow-sm bg-white/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border-2 border-pink-200">
-      <span class="text-2xl sm:text-3xl">👑</span>
-      <span class="text-pink-500"><ruby>仲間<rt>なかま</rt></ruby>わけ</span>
+    <h1 class="text-xl sm:text-2xl font-black text-pink-600 tracking-wide flex items-center gap-1.5 drop-shadow-sm">
+      <span class="text-2xl">🦄</span>
+      <span><ruby>算数<rt>さんすう</rt></ruby> <ruby>形<rt>かたち</rt></ruby>の<ruby>学習<rt>がくしゅう</rt></ruby></span>
     </h1>
-    <div class="gold-badge rounded-full px-3.5 py-1 shadow-md flex items-center gap-1.5">
-      <span class="text-amber-800 font-bold text-xs sm:text-sm"><ruby>点数<rt>てんすう</rt></ruby>:</span>
-      <span id="score" class="text-xl sm:text-2xl font-black text-amber-900">0</span>
+    <div class="bg-white/90 border-2 border-pink-300 rounded-full px-3.5 py-1 shadow-sm flex items-center gap-1.5">
+      <span class="text-pink-500 font-bold text-xs sm:text-sm"><ruby>点数<rt>てんすう</rt></ruby>:</span>
+      <span id="score" class="text-xl font-black text-pink-600">0</span>
     </div>
   </header>
 
   <!-- メインカード -->
-  <main class="w-full max-w-md lace-border p-4 sm:p-6 flex flex-col items-center relative my-auto z-10">
+  <main class="w-full max-w-md quiz-card p-4 sm:p-6 border-4 border-pink-200 flex flex-col items-center relative my-auto z-10">
     
     <!-- 正誤判定ポップアップ -->
     <div id="feedback" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none opacity-0 flex flex-col items-center justify-center w-full">
-      <div id="feedbackIcon" class="text-7xl sm:text-8xl font-black drop-shadow-2xl"></div>
-      <div id="feedbackText" class="text-xl sm:text-2xl font-black bg-white/95 text-pink-600 px-6 py-2.5 rounded-full border-4 border-pink-300 shadow-2xl mt-2 flex items-center gap-2"></div>
+      <div id="feedbackIcon" class="text-8xl sm:text-9xl font-black drop-shadow-2xl"></div>
+      <div id="feedbackText" class="text-2xl sm:text-3xl font-black bg-white px-8 py-3 rounded-full border-4 shadow-2xl mt-2"></div>
+    </div>
+
+    <!-- スタート画面 -->
+    <div id="startOverlay" class="absolute inset-0 bg-white/95 rounded-[28px] z-40 flex flex-col items-center justify-center p-6 text-center">
+      <div class="text-5xl mb-3 animate-bounce">✨🧩✨</div>
+      <h2 class="text-2xl font-black text-pink-600 mb-2">
+        <ruby>形<rt>かたち</rt></ruby>の <ruby>仲間<rt>なかま</rt></ruby>わけ
+      </h2>
+      <p class="text-sm font-bold text-purple-600 mb-6 leading-relaxed">
+        <ruby>上<rt>うえ</rt></ruby>の <ruby>立体<rt>りったい</rt></ruby>と <ruby>同<rt>おな</rt></ruby>じ <ruby>形<rt>かたち</rt></ruby>を<br>えらんで みよう！
+      </p>
+      <button onclick="startGame()" class="w-full py-4 bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white text-xl font-black rounded-2xl shadow-lg border-b-4 border-pink-600 btn-bounce">
+        べんきょうを はじめる！
+      </button>
+    </div>
+
+    <!-- クリア画面 -->
+    <div id="clearOverlay" class="hidden absolute inset-0 bg-white/95 rounded-[28px] z-50 flex flex-col items-center justify-center p-6 text-center">
+      <div class="text-6xl mb-3">👑</div>
+      <h2 class="text-2xl font-black text-pink-600 mb-3">
+        やったね！<br><ruby>形<rt>かたち</rt></ruby>のはかせだね！
+      </h2>
+      <p class="text-base font-bold text-purple-600 mb-6">
+        100てん まんてん！<br>すごーい！
+      </p>
+      <button onclick="resetGame()" class="w-full py-3.5 bg-gradient-to-r from-emerald-400 to-teal-400 text-white text-lg font-black rounded-2xl shadow-lg border-b-4 border-teal-600 btn-bounce">
+        もう一度（いちど） べんきょうする
+      </button>
     </div>
 
     <!-- 問いかけメッセージ -->
-    <div class="text-xs sm:text-base font-bold text-pink-800 text-center mb-3 bg-gradient-to-r from-pink-100 via-purple-100 to-pink-100 w-full py-2.5 px-3 rounded-2xl border-2 border-pink-200 shadow-sm flex items-center justify-center gap-1">
-      <span>✨</span>
-      <span>これと <ruby>同<rt>おな</rt></ruby>じ <ruby>仲間<rt>なかま</rt></ruby>は どれかな？</span>
-      <span>✨</span>
+    <div class="text-sm sm:text-base font-bold text-slate-700 text-center mb-3 bg-pink-50/80 w-full py-2 px-3 rounded-2xl border border-pink-200">
+      これと <ruby>同<rt>おな</rt></ruby>じ <ruby>仲間<rt>なかま</rt></ruby>は どれかな？
     </div>
 
     <!-- 出題3D WebGL表示領域 -->
-    <div id="questionCanvasContainer" class="relative w-48 h-48 sm:w-56 sm:h-56 bg-gradient-to-b from-purple-100/80 via-pink-50/60 to-purple-50/90 rounded-3xl border-4 border-dashed border-pink-300 shadow-inner mb-4 overflow-hidden flex items-center justify-center">
-      <div class="absolute top-2 right-2 text-xs font-bold text-pink-400/80 bg-white/70 px-2.5 py-0.5 rounded-full pointer-events-none">くるくる まわせるよ 🦄</div>
+    <div id="questionCanvasContainer" class="relative w-44 h-44 sm:w-52 sm:h-52 bg-gradient-to-b from-sky-50 to-pink-50/60 rounded-2xl border-4 border-dashed border-pink-200 shadow-inner mb-4 overflow-hidden flex items-center justify-center">
     </div>
 
     <!-- 選択肢 2x2 グリッド -->
@@ -186,39 +116,34 @@
     </div>
 
     <!-- つぎの問題ボタン -->
-    <button id="nextBtn" onclick="generateQuestion()" class="hidden mt-4 w-full py-3 bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 hover:from-pink-500 hover:to-indigo-500 text-white text-base sm:text-lg font-black rounded-2xl shadow-md border-b-4 border-purple-600 btn-bounce flex items-center justify-center gap-2 z-20">
-      <span>つぎの もんだいへ</span>
-      <span class="text-xl">✨➔</span>
+    <button id="nextBtn" onclick="generateQuestion()" class="hidden mt-4 w-full py-3 bg-gradient-to-r from-pink-400 to-purple-400 text-white text-lg font-black rounded-2xl shadow-lg border-b-4 border-purple-600 btn-bounce flex items-center justify-center gap-2 z-20">
+      <span>つぎの もんだい</span>
+      <span class="text-2xl">➔</span>
     </button>
   </main>
 
   <!-- フッター -->
-  <footer class="mt-2 text-center text-xs font-bold text-pink-700/80 bg-white/60 px-3 py-1 rounded-full backdrop-blur-sm border border-pink-200 z-10">
-    💖 <ruby>小学<rt>しょうがく</rt></ruby>1<ruby>年生<rt>ねんせい</rt></ruby>の <ruby>算数<rt>さんすう</rt></ruby>「かたちあそび」 💖
+  <footer class="mt-2 text-center text-xs font-bold text-pink-700/80 z-10">
+    <ruby>小学<rt>しょうがく</rt></ruby>1<ruby>年生<rt>ねんせい</rt></ruby>の <ruby>算数<rt>さんすう</rt></ruby>「かたちあそび」<ruby>デジタル教材<rt>けょうざい</rt></ruby>
   </footer>
 
   <script>
-    // 立体カテゴリー
     const SHAPE_KEYS = ['CYLINDER', 'CUBOID', 'CUBE', 'SPHERE'];
 
-    // 白色・極端に薄い色を除外した、鮮やかで優しいパステルカラーのみ
-    const SHAPE_COLORS = [
-      0xf472b6, // パステルピンク
-      0x60a5fa, // パステルスカイブルー
-      0x34d399, // パステルミントグリーン
-      0xc084fc, // パステルライラックパープル
-      0xfacc15, // パステルイエロー
-      0xf97316, // パステルオレンジ・ピーチ
-      0xf43f5e, // コーラルピンク
-      0x2dd4bf  // ソフトターコイズ
+    // パステルカラー群（白抜き）
+    const PASTEL_COLORS = [
+      0xffa6c9, // パステルピンク
+      0x70d6ff, // パステルスカイブルー
+      0x7678ed, // パステルパープル
+      0xffd166, // パステルイエロー
+      0x06d6a0, // パステルミント
+      0xff9f1c  // パステルオレンジ
     ];
 
     let currentTargetShape = '';
     let score = 0;
     let isAnswering = true;
-    let gameActive = false;
 
-    // Web Audio API サウンド演出
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     let audioCtx = null;
 
@@ -231,48 +156,43 @@
         const gain = audioCtx.createGain();
         osc.connect(gain);
         gain.connect(audioCtx.destination);
-
         const now = audioCtx.currentTime;
 
         if (type === 'correct') {
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(523.25, now);       // C5
-          osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
-          osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
-          osc.frequency.setValueAtTime(1046.50, now + 0.24); // C6
-          gain.gain.setValueAtTime(0.2, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.08);
+          osc.frequency.setValueAtTime(783.99, now + 0.16);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
           osc.start(now);
-          osc.stop(now + 0.5);
+          osc.stop(now + 0.45);
         } else if (type === 'wrong') {
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(260, now);
-          osc.frequency.setValueAtTime(200, now + 0.12);
-          gain.gain.setValueAtTime(0.18, now);
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, now);
+          osc.frequency.setValueAtTime(130, now + 0.12);
+          gain.gain.setValueAtTime(0.2, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
           osc.start(now);
           osc.stop(now + 0.35);
-        } else if (type === 'victory') {
-          // 100点達成時のファンファーレ
-          const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+        } else if (type === 'fanfare') {
+          const notes = [523.25, 659.25, 783.99, 1046.50];
           notes.forEach((freq, idx) => {
             const o = audioCtx.createOscillator();
             const g = audioCtx.createGain();
-            o.type = 'sine';
             o.connect(g);
             g.connect(audioCtx.destination);
-            const t = now + idx * 0.1;
-            o.frequency.setValueAtTime(freq, t);
-            g.gain.setValueAtTime(0.25, t);
-            g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-            o.start(t);
-            o.stop(t + 0.4);
+            o.type = 'triangle';
+            o.frequency.value = freq;
+            g.gain.setValueAtTime(0.2, now + idx * 0.12);
+            g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.4);
+            o.start(now + idx * 0.12);
+            o.stop(now + idx * 0.12 + 0.4);
           });
         }
       } catch (e) {}
     }
 
-    // メイン問題用 Three.js セットアップ
     let qScene, qCamera, qRenderer, qControls, qMeshGroup;
 
     function initMainCanvas() {
@@ -281,7 +201,6 @@
       const h = container.clientHeight;
 
       qScene = new THREE.Scene();
-
       qCamera = new THREE.PerspectiveCamera(40, w / h, 0.1, 100);
       qCamera.position.set(0, 2.2, 6.2);
 
@@ -290,16 +209,12 @@
       qRenderer.setSize(w, h);
       container.appendChild(qRenderer.domElement);
 
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.88);
       qScene.add(ambientLight);
 
-      const dirLight1 = new THREE.DirectionalLight(0xfff1f2, 0.65);
+      const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.75);
       dirLight1.position.set(5, 8, 5);
       qScene.add(dirLight1);
-
-      const dirLight2 = new THREE.DirectionalLight(0xe0e7ff, 0.45);
-      dirLight2.position.set(-5, -3, -3);
-      qScene.add(dirLight2);
 
       qControls = new THREE.OrbitControls(qCamera, qRenderer.domElement);
       qControls.enableDamping = true;
@@ -311,62 +226,36 @@
       qScene.add(qMeshGroup);
     }
 
-    /**
-     * 3D立体＋やわらかいフチ（輪郭線）の生成
-     */
     function createShapeObject(shapeType) {
       const group = new THREE.Group();
       let geometry;
-      const fillColor = SHAPE_COLORS[Math.floor(Math.random() * SHAPE_COLORS.length)];
+      const fillColor = PASTEL_COLORS[Math.floor(Math.random() * PASTEL_COLORS.length)];
 
       if (shapeType === 'CUBE') {
         const subtype = Math.floor(Math.random() * 3);
-        if (subtype === 0) {
-          const s = 1.15;
-          geometry = new THREE.BoxGeometry(s, s, s);
-        } else if (subtype === 1) { // 小さいサイコロ
-          const s = 0.6;
-          geometry = new THREE.BoxGeometry(s, s, s);
-        } else { // キャラメル箱型
-          const s = 1.35;
-          geometry = new THREE.BoxGeometry(s, s, s);
-        }
+        if (subtype === 0) geometry = new THREE.BoxGeometry(0.65, 0.65, 0.65); // 小さいサイコロ
+        else if (subtype === 1) geometry = new THREE.BoxGeometry(1.1, 1.1, 1.1); // 標準
+        else geometry = new THREE.BoxGeometry(1.35, 1.35, 1.35); // キャラメル箱
 
       } else if (shapeType === 'CUBOID') {
-        const subtype = Math.floor(Math.random() * 5);
-        if (subtype === 0) { // 牛乳パック風
-          geometry = new THREE.BoxGeometry(0.7, 1.5, 0.7);
-        } else if (subtype === 1) { // ティッシュ箱風
-          geometry = new THREE.BoxGeometry(1.6, 0.55, 0.85);
-        } else if (subtype === 2) { // 筆箱風
-          geometry = new THREE.BoxGeometry(0.7, 0.6, 1.5);
-        } else if (subtype === 3) { // ラップの箱（長尺）
-          geometry = new THREE.BoxGeometry(1.9, 0.42, 0.42);
-        } else { // 消しゴム風
-          geometry = new THREE.BoxGeometry(0.65, 0.35, 0.95);
-        }
+        const subtype = Math.floor(Math.random() * 4);
+        if (subtype === 0) geometry = new THREE.BoxGeometry(0.5, 1.5, 0.5); // ラップの箱風ロング
+        else if (subtype === 1) geometry = new THREE.BoxGeometry(0.8, 0.4, 1.3); // 消しゴム風
+        else if (subtype === 2) geometry = new THREE.BoxGeometry(0.7, 1.4, 0.7); // 牛乳パック風
+        else geometry = new THREE.BoxGeometry(1.4, 0.6, 0.8); // ティッシュ箱風
 
       } else if (shapeType === 'CYLINDER') {
         const cylinderType = Math.floor(Math.random() * 4);
-        if (cylinderType === 0) { // ラップの芯（細長い円柱）
-          geometry = new THREE.CylinderGeometry(0.22, 0.22, 1.8, 48);
-        } else if (cylinderType === 1) { // 薄いフタ型
-          geometry = new THREE.CylinderGeometry(1.0, 1.0, 0.25, 48);
-        } else if (cylinderType === 2) { // 水筒・茶筒型
-          geometry = new THREE.CylinderGeometry(0.45, 0.45, 1.5, 48);
-        } else { // 缶型
-          geometry = new THREE.CylinderGeometry(0.75, 0.75, 0.9, 48);
-        }
+        if (cylinderType === 0) geometry = new THREE.CylinderGeometry(0.28, 0.28, 1.6, 32); // ラップの芯風細長
+        else if (cylinderType === 1) geometry = new THREE.CylinderGeometry(0.95, 0.95, 0.3, 32); // 薄型コインフタ
+        else if (cylinderType === 2) geometry = new THREE.CylinderGeometry(0.48, 0.48, 1.3, 32); // 茶筒・水筒
+        else geometry = new THREE.CylinderGeometry(0.7, 0.7, 0.9, 32); // 缶詰
 
       } else if (shapeType === 'SPHERE') {
         const sphereType = Math.floor(Math.random() * 3);
-        if (sphereType === 0) { // ドッジボール
-          geometry = new THREE.SphereGeometry(0.9, 32, 32);
-        } else if (sphereType === 1) { // ピンポン玉
-          geometry = new THREE.SphereGeometry(0.5, 32, 32);
-        } else { // 標準球
-          geometry = new THREE.SphereGeometry(0.72, 32, 32);
-        }
+        if (sphereType === 0) geometry = new THREE.SphereGeometry(0.45, 32, 32); // ピンポン玉
+        else if (sphereType === 1) geometry = new THREE.SphereGeometry(0.75, 32, 32); // 標準
+        else geometry = new THREE.SphereGeometry(0.95, 32, 32); // 大
       }
 
       const faceMaterial = new THREE.MeshToonMaterial({
@@ -378,39 +267,28 @@
       const mesh = new THREE.Mesh(geometry, faceMaterial);
       group.add(mesh);
 
-      const lineColor = 0x8b5cf6; // やわらかい紫色の輪郭線
-      if (shapeType === 'SPHERE') {
-        const edges = new THREE.EdgesGeometry(geometry, 25);
-        const lineMaterial = new THREE.LineBasicMaterial({ color: lineColor, linewidth: 2 });
-        group.add(new THREE.LineSegments(edges, lineMaterial));
-      } else if (shapeType === 'CYLINDER') {
-        const edges = new THREE.EdgesGeometry(geometry, 45);
-        const lineMaterial = new THREE.LineBasicMaterial({ color: lineColor, linewidth: 2 });
-        group.add(new THREE.LineSegments(edges, lineMaterial));
-      } else {
-        const edges = new THREE.EdgesGeometry(geometry);
-        const lineMaterial = new THREE.LineBasicMaterial({ color: lineColor, linewidth: 2 });
-        group.add(new THREE.LineSegments(edges, lineMaterial));
-      }
+      const edges = new THREE.EdgesGeometry(geometry, shapeType === 'CYLINDER' ? 40 : 20);
+      const lineMaterial = new THREE.LineBasicMaterial({ color: 0x475569, linewidth: 2.5 });
+      const lineSegments = new THREE.LineSegments(edges, lineMaterial);
+      group.add(lineSegments);
 
       return group;
     }
 
-    // 選択肢カードの配列
     const optionObjects = [];
 
     function createOptionCard(shapeType, container) {
       const card = document.createElement('div');
       card.dataset.shape = shapeType;
-      card.className = `option-card relative w-full aspect-square bg-gradient-to-b from-white to-pink-50/40 border-3 border-pink-200 hover:border-pink-400 rounded-2xl flex flex-col items-center justify-between transition-all duration-150 shadow-sm hover:shadow-md overflow-hidden p-1.5`;
+      card.className = `option-card relative w-full aspect-square bg-white border-3 border-pink-100 hover:border-pink-300 rounded-2xl flex flex-col items-center justify-between transition-all duration-150 shadow-sm overflow-hidden p-1.5`;
 
       const optCanvas = document.createElement('canvas');
       optCanvas.className = 'w-full h-full block rounded-xl';
       card.appendChild(optCanvas);
 
       const selectBtn = document.createElement('button');
-      selectBtn.className = 'select-act-btn absolute bottom-2 left-1/2 -translate-x-1/2 w-11/12 py-1 bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 active:scale-95 text-white font-black text-xs sm:text-sm rounded-xl shadow-sm border-b-2 border-purple-600 z-10 flex items-center justify-center gap-1';
-      selectBtn.innerHTML = `<span>えらぶ ✨</span>`;
+      selectBtn.className = 'select-act-btn absolute bottom-2 left-1/2 -translate-x-1/2 w-11/12 py-1.5 bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white font-black text-xs sm:text-sm rounded-xl shadow-md border-b-2 border-purple-600 z-10';
+      selectBtn.innerHTML = `<span>これにする</span>`;
       card.appendChild(selectBtn);
 
       container.appendChild(card);
@@ -418,7 +296,6 @@
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
       camera.position.set(0, 0.2, 5.0);
-      camera.lookAt(0, 0, 0);
 
       const renderer = new THREE.WebGLRenderer({ canvas: optCanvas, antialias: true, alpha: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -429,39 +306,28 @@
       controls.enableZoom = false;
       controls.enablePan = false;
 
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.88);
       scene.add(ambientLight);
-      const dirLight = new THREE.DirectionalLight(0xfff1f2, 0.65);
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
       dirLight.position.set(4, 6, 4);
       scene.add(dirLight);
 
       const shapeObj = createShapeObject(shapeType);
       scene.add(shapeObj);
-      shapeObj.position.set(0, 0, 0);
 
-      optionObjects.push({
-        renderer,
-        scene,
-        camera,
-        controls,
-        shapeObj,
-        card,
-        selectBtn,
-        shapeType
-      });
+      optionObjects.push({ renderer, scene, camera, controls, shapeObj, card, selectBtn, shapeType });
 
       selectBtn.onclick = (e) => {
         e.stopPropagation();
         checkAnswer(shapeType, card);
       };
 
-      card.onclick = (e) => {
+      card.onclick = () => {
         if (controls.state !== -1) return;
         checkAnswer(shapeType, card);
       };
     }
 
-    // 全描画ループ
     function mainRenderLoop() {
       requestAnimationFrame(mainRenderLoop);
 
@@ -483,25 +349,7 @@
       return [...arr].sort(() => Math.random() - 0.5);
     }
 
-    // ゲーム開始処理（スタートボタンタップ時）
-    function startGame() {
-      document.getElementById('startModal').classList.add('hidden');
-      score = 0;
-      document.getElementById('score').innerText = score;
-      gameActive = true;
-      generateQuestion();
-    }
-
-    // 再スタート処理（100点達成後）
-    function restartGame() {
-      document.getElementById('clearModal').classList.add('hidden');
-      document.getElementById('startModal').classList.remove('hidden');
-    }
-
-    // 問題生成
     function generateQuestion() {
-      if (!gameActive) return;
-
       isAnswering = true;
       document.getElementById('nextBtn').classList.add('hidden');
 
@@ -512,8 +360,7 @@
       currentTargetShape = SHAPE_KEYS[Math.floor(Math.random() * SHAPE_KEYS.length)];
 
       while (qMeshGroup.children.length > 0) {
-        const obj = qMeshGroup.children[0];
-        qMeshGroup.remove(obj);
+        qMeshGroup.remove(qMeshGroup.children[0]);
       }
 
       const qShapeObj = createShapeObject(currentTargetShape);
@@ -527,14 +374,11 @@
       container.innerHTML = '';
 
       const shuffledKeys = shuffle(SHAPE_KEYS);
-      shuffledKeys.forEach(key => {
-        createOptionCard(key, container);
-      });
+      shuffledKeys.forEach(key => createOptionCard(key, container));
     }
 
-    // 正誤チェック
     function checkAnswer(selectedKey, clickedCard) {
-      if (!isAnswering || !gameActive) return;
+      if (!isAnswering) return;
       isAnswering = false;
 
       const feedback = document.getElementById('feedback');
@@ -548,54 +392,62 @@
       });
 
       if (selectedKey === currentTargetShape) {
+        playSound('correct');
+        clickedCard.classList.add('border-emerald-500', 'bg-emerald-50', 'ring-4', 'ring-emerald-200');
+
+        feedbackIcon.innerText = '⭕';
+        feedbackText.innerText = 'せいかい！';
+        feedbackText.className = 'text-2xl sm:text-3xl font-black bg-white text-emerald-600 px-8 py-2 rounded-full border-4 border-emerald-400 shadow-2xl mt-2';
+
         score += 10;
         document.getElementById('score').innerText = score;
 
-        clickedCard.classList.remove('border-pink-200');
-        clickedCard.classList.add('border-emerald-400', 'bg-emerald-50/80', 'ring-4', 'ring-emerald-200');
-
-        feedbackIcon.innerText = '💖';
-        feedbackText.innerHTML = '<span>せいかい！</span><span>✨</span>';
-        feedbackText.className = 'text-xl sm:text-2xl font-black bg-white/95 text-pink-600 px-6 py-2.5 rounded-full border-4 border-pink-300 shadow-2xl mt-2 flex items-center gap-1.5';
-
-        // 100点達成チェック
         if (score >= 100) {
-          playSound('victory');
           setTimeout(() => {
-            document.getElementById('clearModal').classList.remove('hidden');
-          }, 800);
+            playSound('fanfare');
+            document.getElementById('clearOverlay').classList.remove('hidden');
+          }, 600);
           return;
-        } else {
-          playSound('correct');
         }
 
       } else {
         playSound('wrong');
-        clickedCard.classList.remove('border-pink-200');
-        clickedCard.classList.add('border-rose-400', 'bg-rose-50/80');
+        clickedCard.classList.add('border-rose-500', 'bg-rose-50');
 
         optionObjects.forEach(opt => {
           if (opt.shapeType === currentTargetShape) {
-            opt.card.classList.add('border-emerald-400', 'bg-emerald-50/80', 'ring-4', 'ring-emerald-200');
+            opt.card.classList.add('border-emerald-500', 'bg-emerald-50', 'ring-4', 'ring-emerald-200');
           }
         });
 
-        feedbackIcon.innerText = '💧';
-        feedbackText.innerHTML = '<span>ざんねん！</span>';
-        feedbackText.className = 'text-xl sm:text-2xl font-black bg-white/95 text-indigo-600 px-6 py-2.5 rounded-full border-4 border-indigo-300 shadow-2xl mt-2 flex items-center gap-1.5';
+        feedbackIcon.innerText = '❌';
+        feedbackText.innerText = 'ざんねん！';
+        feedbackText.className = 'text-2xl sm:text-3xl font-black bg-white text-rose-600 px-8 py-2 rounded-full border-4 border-rose-400 shadow-2xl mt-2';
       }
 
       feedback.classList.add('animate-pop');
       document.getElementById('nextBtn').classList.remove('hidden');
     }
 
-    // 初期化
+    function startGame() {
+      document.getElementById('startOverlay').classList.add('hidden');
+      score = 0;
+      document.getElementById('score').innerText = score;
+      generateQuestion();
+    }
+
+    function resetGame() {
+      document.getElementById('clearOverlay').classList.add('hidden');
+      score = 0;
+      document.getElementById('score').innerText = score;
+      generateQuestion();
+    }
+
     window.onload = () => {
       initMainCanvas();
       mainRenderLoop();
     };
 
-    // ウィンドウリサイズ対応
     window.onresize = () => {
       if (qRenderer && qCamera) {
         const container = document.getElementById('questionCanvasContainer');
